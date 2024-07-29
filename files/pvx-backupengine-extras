@@ -1,0 +1,336 @@
+#!/usr/bin/php -q
+<?php
+
+class Backup {
+
+// STRUCTURAL (Group[Category[COMPONENT-TYPE]])
+
+    public static function addGroup($name, $categoryList) {
+        $mergedCategories = call_user_func_array('array_merge_recursive', $categoryList);
+        return [
+            $name => $mergedCategories
+        ];
+    }
+
+    /**
+     * Adiciona uma categoria ao plano de backup com a possibilidade de incluir prerestore e postrestore se especificados.
+     *
+     * @param string $name O nome da categoria a ser adicionada.
+     * @param string $description A descrição da categoria a ser adicionada.
+     * @param array $componentList Lista dos componentes que devem ser processados como backup dentro da categoria.
+     * @param string|null $prerestore (Opcional) Função a ser executada antes da restauração (se aplicável).
+     * @param string|null $postrestore (Opcional) Função a ser executada após a restauração (se aplicável).
+     *
+     * @return array Retorna um array representando a categoria a ser adicionada ao plano de backup.
+     */
+    public static function addCategory($name, $description, $componentList, $prerestore = null, $postrestore = null) {
+        // Cria um array representando os detalhes da categoria
+        $category = [
+            'desc'        => $description,
+            'components'  => $componentList, // Lista dos componentes dentro da categoria
+        ];
+
+        // Adiciona os campos opcionais apenas se foram especificados
+        if ($prerestore !== null) {
+            $category['prerestore'] = $prerestore;
+        }
+
+        if ($postrestore !== null) {
+            $category['postrestore'] = $postrestore;
+        }
+
+        return [
+            $name => $category
+        ];
+    }
+
+// TYPE MAPPING, PRIMITIVOS / SUBPRIMITIVOS
+
+    // addDirectory atualizado para aceitar pathlist
+    // /**
+    //  * Adiciona um diretório ao plano de backup, refletindo a estrutura 'file' para cópia simples de arquivo.
+    //  *
+    //  * @param string $path O caminho absoluto do diretório a ser incluído no backup.
+    //  * @param string|null $restoreown (Opcional) Proprietário e grupo para restauração do diretório.
+    //  * @param int|null $restoreperm (Opcional) Modo de permissão do arquivo a ser restaurado.
+    //  *
+    //  * @return array Retorna um array representando o diretório a ser adicionado ao plano de backup.
+    //  */
+    // public static function addDirectory($path, $restoreown = null, $restoreperm = null, $mustExist = null) {
+    //     // Extrai o nome do diretório e seu caminho pai
+    //     $PARENTDIR = dirname($path);
+    //     $DIRNAME = basename($path);
+
+    //     // Gera o nome do arquivo de backup com base no caminho do diretório
+    //     $BACKUPFILE = str_replace("/", ".", (ltrim($PARENTDIR,'/') . "." . $DIRNAME)) . ".tgz";
+
+    //     // Cria um array representando o diretório com os campos obrigatórios
+    //     $directory = [
+    //         'type'       => 'file', // Reflete 'file' para cópia simples de arquivo
+    //         'parentdir'  => $PARENTDIR
+    //         'path'       => $DIRNAME, // Caminho absoluto do diretório
+    //         'backupfile' => $BACKUPFILE // Nome do arquivo de backup gerado
+    //     ];
+
+    //     // CAMPOS OPCIONAIS: Adiciona os campos opcionais apenas se foram especificados
+    //     if ($mustExist !== null) {
+    //         $directory['mustExist'] = $mustExist;
+    //     }
+
+    //     if ($restoreown !== null) {
+    //         $directory['restoreown'] = $restoreown;
+    //     }
+
+    //     if ($restoreperm !== null) {
+    //         $directory['restoreperm'] = $restoreperm;
+    //     }
+
+    //     return $directory; // Retorna o array representando o diretório a ser incluído no plano de backup
+    // }
+
+    /**
+     * Adiciona um diretório ou uma lista de diretórios ao plano de backup, refletindo a estrutura 'file' para cópia simples de arquivo ou pathlist.
+     *
+     * @param string|array $path O caminho absoluto do diretório a ser incluído no backup ou uma lista de caminhos absolutos.
+     * @param string|null $backupfile (Opcional) Nome do arquivo de backup a ser gerado.
+     * @param array|null $restoreown (Opcional) Proprietário e grupo para restauração do diretório.
+     * @param int|null $restoreperm (Opcional) Modo de permissão do arquivo a ser restaurado.
+     * @param string|null $mustExist (Opcional) Determina se deve mandar uma alerta de erro caso o diretório não exista durante o backup ou restore.
+     *
+     * @return array Retorna um array representando o diretório ou a lista de diretórios a serem adicionados ao plano de backup.
+     */
+    public static function addDirectory($path, $backupfile = null, $restoreown = null, $restoreperm = null, $mustExist = null) {
+        // Verifica se $path é um array
+        // Verifica se $path é um array
+        if (is_array($path)) {
+            // Extrai parentdir do primeiro elemento do array
+            $PARENTDIR = dirname($path[0]);       // /var/www/html/admin/modules/fw_fop
+        	$relativeDir = basename($PARENTDIR); // fw_fop
+            $PARENTDIR = dirname($PARENTDIR) . "/";     // /var/www/html/admin/modules           
+            
+            // Cria um array para guardar os diretórios relativos
+        	$pathlist = array();
+            
+            foreach ($path as $individualPath) {
+                $file = basename($individualPath);
+                $relativePath = $relativeDir."/".$file;
+                $pathlist[] = $relativePath;
+            }
+
+            // Cria o nome do arquivo de backup com base no diretório
+            if ($backupfile !== null) {
+                $BACKUPFILE = $backupfile;
+            } else {
+                $BACKUPFILE = $relativePath . ".tgz";
+            }
+            
+            
+            // Cria um array representando a lista de diretórios com os campos obrigatórios
+            $directory = [
+                'type'       => 'dir', // Reflete 'file' para cópia simples de arquivo
+                'parentdir'  => $PARENTDIR,
+                'pathlist'   => $pathlist, // Lista de caminhos relativos dos diretórios
+                'backupfile' => $BACKUPFILE // Nome do arquivo de backup gerado
+            ];
+        } else {
+            // Tratamento similar ao código original para o caso de um único diretório
+            $PARENTDIR = dirname($path);
+            $DIRNAME = basename($path);
+
+            if ($backupfile !== null) {
+                $BACKUPFILE = $backupfile;
+            } else {
+                $BACKUPFILE = str_replace("/", ".", (ltrim($PARENTDIR,'/') . "." . $DIRNAME)) . ".tgz";
+            }
+
+            $directory = [
+                'type'       => 'dir',
+                'parentdir'  => $PARENTDIR,
+                'dirname'    => $DIRNAME,
+                'backupfile' => $BACKUPFILE
+            ];
+        }
+
+        // Adiciona os campos opcionais apenas se foram especificados
+        if ($mustExist !== null) {
+            $directory['mustExist'] = $mustExist;
+        }
+
+        if ($restoreown !== null) {
+            $directory['restoreown'] = $restoreown;
+        }
+
+        if ($restoreperm !== null) {
+            $directory['restoreperm'] = $restoreperm;
+        }
+
+        return $directory;
+    }
+
+
+    // addDirKeep detalhado
+    // /**
+    //  * Adiciona um diretório com manutenção de arquivos ao plano de backup.
+    //  *
+    //  * @param string $parentdir O diretório pai onde o diretório a ser mantido está localizado.
+    //  * @param string $dirname O nome do diretório a ser mantido.
+    //  * @param string $backupfile O nome do arquivo de backup gerado para o diretório mantido.
+    //  *
+    //  * @return array Retorna um array representando o diretório a ser mantido no plano de backup.
+    //  */
+    // public static function addDirKeep($parentdir, $dirname, $backupfile) {
+    //     return [
+    //         'type'       => 'dirkeep',
+    //         'parentdir'  => $parentdir,
+    //         'dirname'    => $dirname,
+    //         'backupfile' => $backupfile
+    //     ];
+    // }
+
+    // addDirKeep simplificado
+    /**
+     * Adiciona um diretório com manutenção de arquivos ao plano de backup.
+     *
+     * @param string $path O caminho completo do diretório a ser mantido.
+     *
+     * @return array Retorna um array representando o diretório a ser mantido no plano de backup,
+     *               incluindo detalhes como diretório pai, nome do diretório e arquivo de backup.
+     */
+    public static function addDirKeep($path) {
+        // Extrai o diretório pai e o nome do diretório do caminho fornecido
+        $parentdir = dirname($path); // Obtém o diretório pai
+        $dirname = basename($path); // Obtém o nome do diretório
+
+        // Gera o nome do arquivo de backup usando o diretório pai e o nome do diretório
+        $backupfile = str_replace("/", ".", ltrim($parentdir, '/') . "." . $dirname) . ".tgz";
+
+        // Retorna os detalhes do diretório a ser mantido no plano de backup
+        return [
+            'type'       => 'dirkeep', // Tipo de componente para manutenção de diretórios
+            'parentdir'  => $parentdir, // Diretório pai do diretório a ser mantido
+            'dirname'    => $dirname, // Nome do diretório a ser mantido
+            'backupfile' => $backupfile // Nome do arquivo de backup gerado para esse diretório
+        ];
+    }
+
+
+    /**
+     * Adiciona um bundle ao plano de backup para agrupar e processar vários componentes.
+     *
+     * @param string $backupdir O diretório temporário que acumula os arquivos de saída de cada componente do bundle.
+     * @param string $backupfile O nome do arquivo de tarball que empacota o backup local do diretório.
+     * @param array $componentList Lista dos componentes que devem ser processados como backup dentro do bundle.
+     *
+     * @return array Retorna um array representando o bundle a ser adicionado ao plano de backup.
+     */
+    public static function addBundle($backupdir, $backupfile, $componentList) {
+        // Cria um array representando os detalhes do bundle
+        $bundle = [
+            'type'        => 'bundle', // Define o tipo como 'bundle'
+            'backupdir'   => $backupdir,
+            'backupfile'  => $backupfile,
+            'components'  => $componentList // Lista dos componentes dentro do bundle
+        ];
+    
+        return $bundle; // Retorna o array representando o bundle a ser incluído no plano de backup
+    }
+
+    /**
+     * Adiciona um banco de dados MySQL ao plano de backup, refletindo a estrutura 'mysqldb' para dump do banco de dados.
+     *
+     * @param string $database O nome do banco de dados MySQL a ser incluído no backup.
+     * @param string|null $backupfile (Opcional) O nome do arquivo de tarball a ser gerado para o backup.
+     *
+     * @return array Retorna um array representando o banco de dados MySQL a ser adicionado ao plano de backup.
+     */
+    public static function addMysqlDB($database, $backupfile = null) {
+        // Cria um array representando os detalhes do mysqldb
+        $mysqlDB = [
+            'type'       => 'mysqldb', // Define o tipo como 'mysqldb'
+            'database'   => $database, // Nome do banco de dados MySQL
+            'backupfile' => $backupfile // Nome do arquivo de tarball a ser gerado (se aplicável)
+        ];
+
+        return $mysqlDB; // Retorna o array representando o mysqldb
+    }
+    
+    /**
+     * Adiciona um banco de dados SQLite ao plano de backup.
+     *
+     * @param string $path O caminho absoluto do arquivo do banco de dados SQLite a ser copiado.
+     * @param int|null $restoreperm (Opcional) Modo de permissão do arquivo a ser restaurado.
+     * @param array|null $restoreown (Opcional) Proprietário e grupo para restauração do arquivo.
+     *
+     * @return array Retorna um array representando o banco de dados SQLite a ser incluído no plano de backup.
+     */
+    public static function addSqliteDB($path, $restoreperm = null, $restoreown = null) {
+        $sqlitedb = [
+            'type'       => 'sqlitedb',
+            'path'       => $path, // Caminho absoluto do arquivo do banco de dados SQLite
+        ];
+
+        // Adiciona as informações de restauração se fornecidas
+        if ($restoreperm !== null) {
+            $sqlitedb['restoreperm'] = $restoreperm;
+        }
+
+        if ($restoreown !== null) {
+            $sqlitedb['restoreown'] = $restoreown;
+        }
+
+        return $sqlitedb;
+    }
+
+    /**
+     * Adiciona um arquivo ao plano de backup, refletindo a estrutura 'file' para cópia simples de arquivo.
+     *
+     * @param string $path O caminho absoluto do arquivo a ser incluído no backup.
+     * @param int|null $restoreperm (Opcional) Modo de permissão do arquivo a ser restaurado.
+     * @param array|null $restoreown (Opcional) Proprietário e grupo para restauração do arquivo.
+     *
+     * @return array Retorna um array representando o arquivo a ser incluído no plano de backup.
+     */
+    public static function addFile($path, $restoreperm = null, $restoreown = null) {
+        $file = [
+            'type' => 'file', // Define o tipo como 'file' para cópia simples de arquivo
+            'path' => $path, // Caminho absoluto do arquivo
+        ];
+
+        // Adiciona as informações de restauração se fornecidas
+        if ($restoreperm !== null) {
+            $file['restoreperm'] = $restoreperm; // Modo de permissão para restauração
+        }
+
+        if ($restoreown !== null) {
+            $file['restoreown'] = $restoreown; // Proprietário e grupo para restauração
+        }
+
+        return $file; // Retorna o array representando o arquivo a ser incluído no plano de backup
+    }
+
+
+// EXTRA CLASS FUNCTIONS
+
+    public static function pushAdditionToPlan($backupPlan, $additionList) {
+        foreach ($additionList as $addition) {
+            $backupPlan = array_merge($backupPlan, $addition);
+        };
+        
+        return $backupPlan;
+    }
+
+    public static function createPlan() {
+        $rArray=array();
+        foreach (func_get_args() as $arg) {
+            if (!is_array($arg)) {
+                echo "\n\"$arg\" não é um array!";
+            } else {
+                $rArray=array_merge($rArray, $arg);
+            }
+        }
+        
+        return $rArray;
+    }
+}
+
+?>

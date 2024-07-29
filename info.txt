@@ -1,0 +1,5 @@
+Utilizado para substituir a backup-engine padrão do Issabel para a backup-engine da Phonevox.
+
+A backup-engine da Phonevox implementa uma classe para controlar o $BACKUP_PLAN da engine, e implementa novos campos na página de backup do Issabel (integracao-ixc, integracao-sgp), com possibilidade de criar "facilmente" novos campos editando o $BACKUP_PLAN
+
+PS: As alterações no backup-plan não são automaticamente refletidas na página de backup do Issabel: é necessário editar manualmente o ".tpl" e etc.
