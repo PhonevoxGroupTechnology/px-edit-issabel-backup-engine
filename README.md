@@ -15,7 +15,7 @@ A backup-engine customizada está escrita de uma forma a ser facilmente utilizad
 # Instalação
 
 ```sh
-git clone https://github.com/adriankubinyete/px-edit-issabel-backup-engine.git
+git clone https://github.com/PhonevoxGroupTechnology/px-edit-issabel-backup-engine.git
 cd px-edit-issabel-backup-engine
 chmod +x install.sh
 ./install.sh
