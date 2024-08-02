@@ -168,6 +168,7 @@ function main()
     safe_replace "/var/www/html/modules/backup_restore/index.php" "$PATH_SCP_FILES/index.php"
     safe_replace "$PATH_PRIVILEGED/backupengine" "$PATH_SCP_FILES/backupengine"
     cp "$PATH_SCP_FILES/pvx-backupengine-extras" "$PATH_PRIVILEGED/pvx-backupengine-extras"
+    chmod 755 "$PATH_PRIVILEGED/backupengine" && chmod 755 "$PATH_PRIVILEGED/pvx-backupengine-extras"
 
 }
 

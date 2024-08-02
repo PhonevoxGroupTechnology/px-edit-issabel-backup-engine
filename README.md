@@ -1,4 +1,4 @@
-# Phonevox EDIT: Custom backup-engine (px-edit-backup-engine)
+# Phonevox custom backupengine
 
 **pt-BR**: Script visando a instalação de uma backup-engine customizada, para o Issabel4.<br>
 **en-US**: Script for installing a custom backup-engine, meant for Issabel4.
@@ -15,8 +15,8 @@ A backup-engine customizada está escrita de uma forma a ser facilmente utilizad
 # Instalação
 
 ```sh
-git clone https://github.com/PhonevoxGroupTechnology/px-edit-issabel-backup-engine.git
-cd px-edit-issabel-backup-engine
+git clone https://github.com/phonevox/issabel-backupengine.git
+cd issabel-backupengine
 chmod +x install.sh
 ./install.sh
 ```
